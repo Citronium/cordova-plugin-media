@@ -33,6 +33,9 @@
 
 @implementation CDVSound
 
+bool isAudioRunning = false;
+bool isInterruption = false;
+
 @synthesize soundCache, avSession, currMediaId;
 
 - (NSURL*)urlForResource:(NSString*)resourcePath
@@ -269,6 +272,30 @@
     [self.commandDelegate evalJs:jsString];
 }
 
+- (void) onAudioSessionEvent: (NSNotification *) notification
+{
+    //Check the type of notification, especially if you are sending multiple AVAudioSession events here
+    if ([notification.name isEqualToString:AVAudioSessionInterruptionNotification]) {
+        
+        //Check to see if it was a Begin interruption
+        if ([[notification.userInfo valueForKey:AVAudioSessionInterruptionTypeKey] isEqualToNumber:[NSNumber numberWithInt:AVAudioSessionInterruptionTypeBegan]]) {
+            
+            if (isAudioRunning) {
+                isInterruption = true;
+                isAudioRunning = false;
+                NSString* jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", self.currMediaId, MEDIA_STATE, MEDIA_PAUSED];
+                [self.commandDelegate evalJs:jsString];
+            }
+        } else {
+            if (isInterruption) {
+                isInterruption = false;
+                CDVAudioFile* audioFile = [[self soundCache] objectForKey:self.currMediaId];
+                [self playAudio:audioFile withId:self.currMediaId withOptions:nil];
+            }
+        }
+    }
+}
+
 - (void)create:(CDVInvokedUrlCommand*)command
 {
     NSString *notificationName = @"MP_CONTROL_EVENTS";
@@ -278,6 +305,7 @@
      selector:@selector(handleRemoteControlEvents:)
      name:notificationName
      object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onAudioSessionEvent:) name:AVAudioSessionInterruptionNotification object:nil];
     
     NSString* mediaId = [command.arguments objectAtIndex:0];
     NSString* resourcePath = [command.arguments objectAtIndex:1];
@@ -293,17 +321,17 @@
         if (![resourceUrl isFileURL]) {
             // First create an AVPlayerItem
             AVPlayerItem* playerItem = [AVPlayerItem playerItemWithURL:resourceUrl];
-
+            
             // Subscribe to the AVPlayerItem's DidPlayToEndTime notification.
             [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(itemDidFinishPlaying:) name:AVPlayerItemDidPlayToEndTimeNotification object:playerItem];
-
+            
             // Pass the AVPlayerItem to a new player
             avPlayer = [[AVPlayer alloc] initWithPlayerItem:playerItem];
-
+            
             //avPlayer = [[AVPlayer alloc] initWithURL:resourceUrl];
         }
-
-
+        
+        
         self.currMediaId = mediaId;
         
         CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
@@ -349,16 +377,25 @@
     NSString* resourcePath = [command.arguments objectAtIndex:1];
     NSDictionary* options = [command.arguments objectAtIndex:2 withDefault:nil];
     
+    CDVAudioFile* audioFile = [self audioFileForResource:resourcePath withId:mediaId doValidation:YES forRecording:NO];
+    
+    [self playAudio:audioFile withId:mediaId withOptions:options];
+    
+    // else audioFile was nil - error already returned from audioFile for resource
+    return;
+}
+
+- (void) playAudio:(CDVAudioFile*)audioFile withId:(NSString*)mediaId withOptions:(NSDictionary*)options
+{
     BOOL bError = NO;
     NSString* jsString = nil;
     
-    CDVAudioFile* audioFile = [self audioFileForResource:resourcePath withId:mediaId doValidation:YES forRecording:NO];
     if ((audioFile != nil) && (audioFile.resourceURL != nil)) {
         if (audioFile.player == nil) {
             bError = [self prepareToPlay:audioFile withId:mediaId];
         }
         if (!bError) {
-//            self.currMediaId = audioFile.player.mediaId;
+            //            self.currMediaId = audioFile.player.mediaId;
             self.currMediaId = mediaId;
             
             // audioFile.player != nil  or player was successfully created
@@ -406,6 +443,7 @@
                     position = audioFile.player.currentTime;
                 }
                 
+                isAudioRunning = true;
                 position = round(position * 1000) / 1000;
                 MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
                 NSMutableDictionary *playingInfo = [NSMutableDictionary dictionaryWithDictionary:center.nowPlayingInfo];
@@ -434,8 +472,6 @@
             [self.commandDelegate evalJs:jsString];
         }
     }
-    // else audioFile was nil - error already returned from audioFile for resource
-    return;
 }
 
 - (BOOL)prepareToPlay:(CDVAudioFile*)audioFile withId:(NSString*)mediaId
@@ -451,28 +487,28 @@
         avPlayer = nil;
     } else {
         /*
-        NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:resourceURL];
-        NSString* userAgent = [self.commandDelegate userAgent];
-        if (userAgent) {
-            [request setValue:userAgent forHTTPHeaderField:@"User-Agent"];
-        }
-        
-        NSURLResponse* __autoreleasing response = nil;
-        NSData* data = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:&playerError];
-        if (playerError) {
-            NSLog(@"Unable to download audio from: %@", [resourceURL absoluteString]);
-        } else {
-            // bug in AVAudioPlayer when playing downloaded data in NSData - we have to download the file and play from disk
-            CFUUIDRef uuidRef = CFUUIDCreate(kCFAllocatorDefault);
-            CFStringRef uuidString = CFUUIDCreateString(kCFAllocatorDefault, uuidRef);
-            NSString* filePath = [NSString stringWithFormat:@"%@/%@", [NSTemporaryDirectory()stringByStandardizingPath], uuidString];
-            CFRelease(uuidString);
-            CFRelease(uuidRef);
-            
-            [data writeToFile:filePath atomically:YES];
-            NSURL* fileURL = [NSURL fileURLWithPath:filePath];
-            audioFile.player = [[CDVAudioPlayer alloc] initWithContentsOfURL:fileURL error:&playerError];
-        }
+         NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:resourceURL];
+         NSString* userAgent = [self.commandDelegate userAgent];
+         if (userAgent) {
+         [request setValue:userAgent forHTTPHeaderField:@"User-Agent"];
+         }
+         
+         NSURLResponse* __autoreleasing response = nil;
+         NSData* data = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:&playerError];
+         if (playerError) {
+         NSLog(@"Unable to download audio from: %@", [resourceURL absoluteString]);
+         } else {
+         // bug in AVAudioPlayer when playing downloaded data in NSData - we have to download the file and play from disk
+         CFUUIDRef uuidRef = CFUUIDCreate(kCFAllocatorDefault);
+         CFStringRef uuidString = CFUUIDCreateString(kCFAllocatorDefault, uuidRef);
+         NSString* filePath = [NSString stringWithFormat:@"%@/%@", [NSTemporaryDirectory()stringByStandardizingPath], uuidString];
+         CFRelease(uuidString);
+         CFRelease(uuidRef);
+         
+         [data writeToFile:filePath atomically:YES];
+         NSURL* fileURL = [NSURL fileURLWithPath:filePath];
+         audioFile.player = [[CDVAudioPlayer alloc] initWithContentsOfURL:fileURL error:&playerError];
+         }
          */
     }
     
@@ -502,6 +538,7 @@
         NSLog(@"Stopped playing audio sample '%@'", audioFile.resourcePath);
         [audioFile.player stop];
         audioFile.player.currentTime = 0;
+        isAudioRunning = false;
         jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_STATE, MEDIA_STOPPED];
     }  // ignore if no media playing
     if (jsString) {
@@ -522,7 +559,8 @@
             [avPlayer pause];
         }
         NSLog(@"Paused playing audio sample '%@'", audioFile.resourcePath);
-
+        
+        isAudioRunning = false;
         jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_STATE, MEDIA_PAUSED];
     }
     
@@ -548,12 +586,13 @@
     if (audioFile != nil) {
         NSString* jsString;
         double posInSeconds = position / 1000;
-
+        
         if (audioFile.player != nil) {
             if (posInSeconds >= audioFile.player.duration) {
                 // The seek is past the end of file.  Stop media and reset to beginning instead of seeking past the end.
                 [audioFile.player stop];
                 audioFile.player.currentTime = 0;
+                isAudioRunning = false;
                 jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%.3f);\n%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_POSITION, 0.0, @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_STATE, MEDIA_STOPPED];
                 
                 // NSLog(@"seekToEndJsString=%@",jsString);
@@ -562,21 +601,21 @@
                 jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%f);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_POSITION, posInSeconds];
                 // NSLog(@"seekJsString=%@",jsString);
             }
-
+            
         } else if (avPlayer != nil) {
             int32_t timeScale = avPlayer.currentItem.asset.duration.timescale;
             CMTime timeToSeek = CMTimeMakeWithSeconds(posInSeconds, timeScale);
             // update info on the lock screen
             
-           
+            
             BOOL isPlaying = (avPlayer.rate > 0 && !avPlayer.error);
             
             [avPlayer seekToTime: timeToSeek
-                         toleranceBefore: kCMTimeZero
-                          toleranceAfter: kCMTimeZero
-                       completionHandler: ^(BOOL finished) {
-                           if (isPlaying) [avPlayer play];
-                       }];
+                 toleranceBefore: kCMTimeZero
+                  toleranceAfter: kCMTimeZero
+               completionHandler: ^(BOOL finished) {
+                   if (isPlaying) [avPlayer play];
+               }];
         }
         MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
         NSMutableDictionary *playingInfo = [NSMutableDictionary dictionaryWithDictionary:center.nowPlayingInfo];
@@ -627,7 +666,7 @@
         CMTime time = [avPlayer currentTime];
         position = CMTimeGetSeconds(time);
     }
-
+    
     CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDouble:position];
     NSString* jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%.3f);\n%@", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_POSITION, position, [result toSuccessCallbackString:callbackId]];
     [self.commandDelegate evalJs:jsString];
@@ -809,7 +848,7 @@
 
 - (void)audioPlayerDidFinishPlaying:(AVAudioPlayer*)player successfully:(BOOL)flag
 {
-//    CDVAudioPlayer* aPlayer = (CDVAudioPlayer*)player;
+    //    CDVAudioPlayer* aPlayer = (CDVAudioPlayer*)player;
     NSString* mediaId = self.currMediaId;
     CDVAudioFile* audioFile = [[self soundCache] objectForKey:mediaId];
     NSString* jsString = nil;
@@ -819,6 +858,7 @@
     }
     if (flag) {
         audioFile.player.currentTime = 0;
+        isAudioRunning = false;
         jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_STATE, MEDIA_STOPPED];
     } else {
         // jsString = [NSString stringWithFormat: @"%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_ERROR, MEDIA_ERR_DECODE];
@@ -830,12 +870,11 @@
     [self.commandDelegate evalJs:jsString];
 }
 
-
-
 -(void)itemDidFinishPlaying:(NSNotification *) notification {
     // Will be called when AVPlayer finishes playing playerItem
     NSString* mediaId = self.currMediaId;
     NSString* jsString = nil;
+    isAudioRunning = false;
     jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_STATE, MEDIA_STOPPED];
     [self.commandDelegate evalJs:jsString];
 }
