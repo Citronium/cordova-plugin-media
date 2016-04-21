@@ -160,8 +160,8 @@ Media.prototype.setVolume = function(volume) {
 };
                
                
-Media.prototype.setLockScreenInfo = function(title, album, artist, pathToCover, duration) {
-    exec(null, this.errorCallback, "Media", "setLockScreenInfo", [this.id, title, album, artist, pathToCover, duration]);
+Media.prototype.setLockScreenInfo = function(title, album, artist, pathToCover, duration, position) {
+    exec(null, this.errorCallback, "Media", "setLockScreenInfo", [this.id, title, album, artist, pathToCover, duration, position]);
 };
 
 /**

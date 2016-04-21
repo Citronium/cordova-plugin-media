@@ -679,6 +679,7 @@ bool isInterruption = false;
     NSString* artist = [command.arguments objectAtIndex:3];
     NSString* pathToCover = [command.arguments objectAtIndex:4];
     NSNumber* duration = [command.arguments objectAtIndex:5 withDefault:[NSNumber numberWithFloat:1.0]];
+    NSNumber* position = [command.arguments objectAtIndex:6 withDefault:[NSNumber numberWithFloat:0.0]];
     
     
     if ([MPNowPlayingInfoCenter class])  {
@@ -688,6 +689,7 @@ bool isInterruption = false;
         [songInfo setObject:artist forKey:MPMediaItemPropertyArtist];
         [songInfo setObject:album forKey:MPMediaItemPropertyAlbumTitle];
         [songInfo setObject:duration forKey:MPMediaItemPropertyPlaybackDuration];
+        [songInfo setObject:position forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
         
         
         NSString *currentpath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) lastObject];
