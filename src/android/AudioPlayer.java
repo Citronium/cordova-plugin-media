@@ -632,6 +632,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             );
             CipherInputStream cipherInputStream = new CipherInputStream(shortFileStream, cipher);
             File tempShortSong = File.createTempFile("music_10", "mp3", context.getCacheDir());
+            tempShortSong.deleteOnExit();
             FileOutputStream shortFileOs = new FileOutputStream(tempShortSong);
             try {
                 mediaPlayer.reset();
