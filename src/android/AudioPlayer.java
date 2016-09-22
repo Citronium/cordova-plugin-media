@@ -18,6 +18,7 @@
 */
 package org.apache.cordova.media;
 
+import android.content.Context;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
@@ -27,70 +28,82 @@ import android.media.MediaRecorder;
 import android.os.Environment;
 import android.util.Log;
 
+import org.apache.cordova.LOG;
+
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * This class implements the audio playback and recording capabilities used by Cordova.
  * It is called by the AudioHandler Cordova class.
  * Only one file can be played or recorded per class instance.
- *
+ * <p/>
  * Local audio files must reside in one of two places:
- *      android_asset:      file name must start with /android_asset/sound.mp3
- *      sdcard:             file name is just sound.mp3
+ * android_asset:      file name must start with /android_asset/sound.mp3
+ * sdcard:             file name is just sound.mp3
  */
 public class AudioPlayer implements OnCompletionListener, OnPreparedListener, OnErrorListener {
 
-    // AudioPlayer modes
-    public enum MODE { NONE, PLAY, RECORD };
-
-    // AudioPlayer states
-    public enum STATE { MEDIA_NONE,
-                        MEDIA_STARTING,
-                        MEDIA_RUNNING,
-                        MEDIA_PAUSED,
-                        MEDIA_STOPPED,
-                        MEDIA_LOADING
-                      };
-
     private static final String LOG_TAG = "AudioPlayer";
 
+    ;
+    /**
+     * load audio file
+     *
+     * @throws IOException
+     * @throws IllegalStateException
+     * @throws SecurityException
+     * @throws IllegalArgumentException
+     */
+
+    private static final int MAX_BUFFER_SIZE = 4096000;
+
+    ;
     // AudioPlayer message ids
     private static int MEDIA_STATE = 1;
     private static int MEDIA_DURATION = 2;
     private static int MEDIA_POSITION = 3;
     private static int MEDIA_ERROR = 9;
-
     // Media error codes
-    private static int MEDIA_ERR_NONE_ACTIVE    = 0;
-    private static int MEDIA_ERR_ABORTED        = 1;
+    private static int MEDIA_ERR_NONE_ACTIVE = 0;
+    private static int MEDIA_ERR_ABORTED = 1;
+    private AudioHandler handler;           // The AudioHandler object
 //    private static int MEDIA_ERR_NETWORK        = 2;
 //    private static int MEDIA_ERR_DECODE         = 3;
 //    private static int MEDIA_ERR_NONE_SUPPORTED = 4;
-
-    private AudioHandler handler;           // The AudioHandler object
     private String id;                      // The id of this player (used to identify Media object in JavaScript)
     private MODE mode = MODE.NONE;          // Playback or Recording mode
     private STATE state = STATE.MEDIA_NONE; // State of recording or playback
-
     private String audioFile = null;        // File name to play or record to
     private float duration = -1;            // Duration of audio
-
     private MediaRecorder recorder = null;  // Audio recording object
     private String tempFile = null;         // Temporary recording file name
-
     private MediaPlayer player = null;      // Audio player object
     private boolean prepareOnly = true;     // playback after file prepare flag
     private int seekOnPrepared = 0;     // seek to this location once media is prepared
+    private Context context = null;
 
     /**
      * Constructor.
      *
-     * @param handler           The audio handler object
-     * @param id                The id of this audio player
+     * @param handler The audio handler object
+     * @param id      The id of this audio player
      */
-    public AudioPlayer(AudioHandler handler, String id, String file) {
+    public AudioPlayer(AudioHandler handler, String id, String file, Context context) {
         this.handler = handler;
         this.id = id;
         this.audioFile = file;
@@ -101,7 +114,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         } else {
             this.tempFile = "/data/data/" + handler.cordova.getActivity().getPackageName() + "/cache/tmprecording.3gp";
         }
-
+        this.context = context;
     }
 
     /**
@@ -127,36 +140,36 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     /**
      * Start recording the specified file.
      *
-     * @param file              The name of the file
+     * @param file The name of the file
      */
     public void startRecording(String file) {
         switch (this.mode) {
-        case PLAY:
-            Log.d(LOG_TAG, "AudioPlayer Error: Can't record in play mode.");
-            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', "+MEDIA_ERROR+", { \"code\":"+MEDIA_ERR_ABORTED+"});");
-            break;
-        case NONE:
-            this.audioFile = file;
-            this.recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            this.recorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT); // THREE_GPP);
-            this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT); //AMR_NB);
-            this.recorder.setOutputFile(this.tempFile);
-            try {
-                this.recorder.prepare();
-                this.recorder.start();
-                this.setState(STATE.MEDIA_RUNNING);
-                return;
-            } catch (IllegalStateException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            case PLAY:
+                Log.d(LOG_TAG, "AudioPlayer Error: Can't record in play mode.");
+                this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_ABORTED + "});");
+                break;
+            case NONE:
+                this.audioFile = file;
+                this.recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                this.recorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT); // THREE_GPP);
+                this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT); //AMR_NB);
+                this.recorder.setOutputFile(this.tempFile);
+                try {
+                    this.recorder.prepare();
+                    this.recorder.start();
+                    this.setState(STATE.MEDIA_RUNNING);
+                    return;
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
-            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', "+MEDIA_ERROR+", { \"code\":"+MEDIA_ERR_ABORTED+"});");
-            break;
-        case RECORD:
-            Log.d(LOG_TAG, "AudioPlayer Error: Already recording.");
-            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', "+MEDIA_ERROR+", { \"code\":"+MEDIA_ERR_ABORTED+"});");
+                this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_ABORTED + "});");
+                break;
+            case RECORD:
+                Log.d(LOG_TAG, "AudioPlayer Error: Already recording.");
+                this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_ABORTED + "});");
         }
     }
 
@@ -187,28 +200,23 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
      */
     public void stopRecording() {
         if (this.recorder != null) {
-            try{
+            try {
                 if (this.state == STATE.MEDIA_RUNNING) {
                     this.recorder.stop();
                     this.setState(STATE.MEDIA_STOPPED);
                 }
                 this.recorder.reset();
                 this.moveFile(this.audioFile);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
     }
 
-    //==========================================================================
-    // Playback
-    //==========================================================================
-
     /**
      * Start or resume playing audio file.
      *
-     * @param file              The name of the audio file.
+     * @param file The name of the audio file.
      */
     public void startPlaying(String file) {
         if (this.readyPlayer(file) && this.player != null) {
@@ -220,6 +228,10 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         }
     }
 
+    //==========================================================================
+    // Playback
+    //==========================================================================
+
     /**
      * Seek or jump to a new time in the track.
      */
@@ -228,8 +240,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.player.seekTo(milliseconds);
             Log.d(LOG_TAG, "Send a onStatus update for the new seek");
             this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_POSITION + ", " + milliseconds / 1000.0f + ");");
-        }
-        else {
+        } else {
             this.seekOnPrepared = milliseconds;
         }
     }
@@ -243,8 +254,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         if (this.state == STATE.MEDIA_RUNNING && this.player != null) {
             this.player.pause();
             this.setState(STATE.MEDIA_PAUSED);
-        }
-        else {
+        } else {
             Log.d(LOG_TAG, "AudioPlayer Error: pausePlaying() called during invalid state: " + this.state.ordinal());
             this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_NONE_ACTIVE + "});");
         }
@@ -259,8 +269,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.player.seekTo(0);
             Log.d(LOG_TAG, "stopPlaying is calling stopped");
             this.setState(STATE.MEDIA_STOPPED);
-        }
-        else {
+        } else {
             Log.d(LOG_TAG, "AudioPlayer Error: stopPlaying() called during invalid state: " + this.state.ordinal());
             this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_NONE_ACTIVE + "});");
         }
@@ -269,7 +278,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     /**
      * Callback to be invoked when playback of a media source has completed.
      *
-     * @param player           The MediaPlayer that reached the end of the file
+     * @param player The MediaPlayer that reached the end of the file
      */
     public void onCompletion(MediaPlayer player) {
         Log.d(LOG_TAG, "on completion is calling stopped");
@@ -279,15 +288,14 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     /**
      * Get current position of playback.
      *
-     * @return                  position in msec or -1 if not playing
+     * @return position in msec or -1 if not playing
      */
     public long getCurrentPosition() {
         if ((this.state == STATE.MEDIA_RUNNING) || (this.state == STATE.MEDIA_PAUSED)) {
             int curPos = this.player.getCurrentPosition();
             this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_POSITION + ", " + curPos / 1000.0f + ");");
             return curPos;
-        }
-        else {
+        } else {
             return -1;
         }
     }
@@ -296,26 +304,25 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
      * Determine if playback file is streaming or local.
      * It is streaming if file name starts with "http://"
      *
-     * @param file              The file name
-     * @return                  T=streaming, F=local
+     * @param file The file name
+     * @return T=streaming, F=local
      */
     public boolean isStreaming(String file) {
         if (file.contains("http://") || file.contains("https://")) {
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
 
     /**
-      * Get the duration of the audio file.
-      *
-      * @param file             The name of the audio file.
-      * @return                 The duration in msec.
-      *                             -1=can't be determined
-      *                             -2=not allowed
-      */
+     * Get the duration of the audio file.
+     *
+     * @param file The name of the audio file.
+     * @return The duration in msec.
+     * -1=can't be determined
+     * -2=not allowed
+     */
     public float getDuration(String file) {
 
         // Can't get duration of recording
@@ -342,7 +349,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     /**
      * Callback to be invoked when the media source is ready for playback.
      *
-     * @param player           The MediaPlayer that is ready for playback
+     * @param player The MediaPlayer that is ready for playback
      */
     public void onPrepared(MediaPlayer player) {
         // Listen for playback completion
@@ -377,11 +384,11 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
 
     /**
      * Callback to be invoked when there has been an error during an asynchronous operation
-     *  (other errors will throw exceptions at method call time).
+     * (other errors will throw exceptions at method call time).
      *
-     * @param player           the MediaPlayer the error pertains to
-     * @param arg1              the type of error that has occurred: (MEDIA_ERROR_UNKNOWN, MEDIA_ERROR_SERVER_DIED)
-     * @param arg2              an extra code, specific to the error.
+     * @param player the MediaPlayer the error pertains to
+     * @param arg1   the type of error that has occurred: (MEDIA_ERROR_UNKNOWN, MEDIA_ERROR_SERVER_DIED)
+     * @param arg2   an extra code, specific to the error.
      */
     public boolean onError(MediaPlayer player, int arg1, int arg2) {
         Log.d(LOG_TAG, "AudioPlayer.onError(" + arg1 + ", " + arg2 + ")");
@@ -393,18 +400,6 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         // Send error notification to JavaScript
         this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', { \"code\":" + arg1 + "});");
         return false;
-    }
-
-    /**
-     * Set the state and send it to JavaScript.
-     *
-     * @param state
-     */
-    private void setState(STATE state) {
-        if (this.state != state) {
-            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_STATE + ", " + state.ordinal() + ");");
-        }
-        this.state = state;
     }
 
     /**
@@ -430,6 +425,18 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     }
 
     /**
+     * Set the state and send it to JavaScript.
+     *
+     * @param state
+     */
+    private void setState(STATE state) {
+        if (this.state != state) {
+            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_STATE + ", " + state.ordinal() + ");");
+        }
+        this.state = state;
+    }
+
+    /**
      * Set the volume for audio player
      *
      * @param volume
@@ -440,25 +447,27 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
 
     /**
      * attempts to put the player in play mode
+     *
      * @return true if in playmode, false otherwise
      */
     private boolean playMode() {
-        switch(this.mode) {
-        case NONE:
-            this.setMode(MODE.PLAY);
-            break;
-        case PLAY:
-            break;
-        case RECORD:
-            Log.d(LOG_TAG, "AudioPlayer Error: Can't play in record mode.");
-            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_ABORTED + "});");
-            return false; //player is not ready
+        switch (this.mode) {
+            case NONE:
+                this.setMode(MODE.PLAY);
+                break;
+            case PLAY:
+                break;
+            case RECORD:
+                Log.d(LOG_TAG, "AudioPlayer Error: Can't play in record mode.");
+                this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_ABORTED + "});");
+                return false; //player is not ready
         }
         return true;
     }
 
     /**
      * attempts to initialize the media player for playback
+     *
      * @param file the file to play
      * @return false if player not ready, reports if in wrong mode or state
      */
@@ -472,7 +481,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                     try {
                         this.loadAudioFile(file);
                     } catch (Exception e) {
-                        this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', "+MEDIA_ERROR+", { \"code\":"+MEDIA_ERR_ABORTED+"});");
+                        this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', " + MEDIA_ERROR + ", { \"code\":" + MEDIA_ERR_ABORTED + "});");
                     }
                     return false;
                 case MEDIA_LOADING:
@@ -510,14 +519,8 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         return false;
     }
 
-    /**
-     * load audio file
-     * @throws IOException
-     * @throws IllegalStateException
-     * @throws SecurityException
-     * @throws IllegalArgumentException
-     */
     private void loadAudioFile(String file) throws IllegalArgumentException, SecurityException, IllegalStateException, IOException {
+        long tDelta = 0;
         if (this.isStreaming(file)) {
             this.player.setDataSource(file);
             this.player.setAudioStreamType(AudioManager.STREAM_MUSIC);
@@ -526,30 +529,152 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.setState(STATE.MEDIA_STARTING);
             this.player.setOnPreparedListener(this);
             this.player.prepareAsync();
-        }
-        else {
+        } else {
             if (file.startsWith("/android_asset/")) {
                 String f = file.substring(15);
                 android.content.res.AssetFileDescriptor fd = this.handler.cordova.getActivity().getAssets().openFd(f);
                 this.player.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
-            }
-            else {
+            } else {
                 File fp = new File(file);
                 if (fp.exists()) {
-                    FileInputStream fileInputStream = new FileInputStream(file);
-                    this.player.setDataSource(fileInputStream.getFD());
+                    Cipher cipher = createCipher(this.getClass().getPackage().getName());
+                    FileInputStream fileStream = new FileInputStream(fp);
+                    final File tempFullSong = File.createTempFile("music", "mp3", context.getCacheDir());
+                    tempFullSong.deleteOnExit();
+                    FileOutputStream fileOutputStream = new FileOutputStream(tempFullSong);
+                    CipherInputStream cipherInputStream = new CipherInputStream(fileStream, cipher);
+                    FileInputStream fileInputStream = null;
+                    final MediaPlayer mediaPlayer = new MediaPlayer();
+                    playShortFile(fp, cipher, mediaPlayer);
+                    try {
+
+                        long tStart = System.currentTimeMillis();
+                        byte[] buffer = new byte[MAX_BUFFER_SIZE];
+                        int bytesRead = 0;
+                        while ((bytesRead = cipherInputStream.read(buffer)) != -1) {
+                            if (cipherInputStream.available() == 0) {
+                                fileOutputStream.write(buffer, 0, bytesRead);
+                            }
+                        }
+                        fileInputStream = new FileInputStream(tempFullSong);
+                        long tEnd = System.currentTimeMillis();
+                        tDelta = tEnd - tStart;
+                        mediaPlayer.stop();
+                        mediaPlayer.release();
+                        player.setDataSource(fileInputStream.getFD());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                     fileInputStream.close();
-                }
-                else {
+                    fileStream.close();
+                    fileOutputStream.flush();
+                    fileOutputStream.close();
+                    cipherInputStream.close();
+                } else {
                     this.player.setDataSource(Environment.getExternalStorageDirectory().getPath() + "/" + file);
                 }
             }
-                this.setState(STATE.MEDIA_STARTING);
-                this.player.setOnPreparedListener(this);
-                this.player.prepare();
+            this.setState(STATE.MEDIA_STARTING);
+            this.player.setOnPreparedListener(this);
+            this.player.prepare();
 
-                // Get duration
-                this.duration = getDurationInSeconds();
+            // Get duration
+            this.duration = getDurationInSeconds();
+
+            this.seekOnPrepared = (int) tDelta;
+            this.player.seekTo((int) tDelta);
+
+        }
+    }
+
+    /**
+     * Create cipher for encrypt file music
+     * @param passcode some string
+     * @return {@link Cipher} object for encryption
+     */
+    private Cipher createCipher(String passcode) {
+        Cipher cipher = null;
+        try {
+            String cipherType = "AES/ECB/NoPadding";
+            byte[] key = passcode.getBytes("UTF-8");
+            MessageDigest sha = MessageDigest.getInstance("SHA-256");
+            key = sha.digest(key);
+            key = Arrays.copyOf(key,16);
+            SecretKeySpec sks = new SecretKeySpec(key, "AES");
+            cipher = Cipher.getInstance(cipherType);
+            cipher.init(Cipher.DECRYPT_MODE, sks);
+        } catch (NoSuchPaddingException e) {
+            LOG.d(LOG_TAG, "No such padding in cipher");
+            e.printStackTrace();
+        } catch (NoSuchAlgorithmException e) {
+            LOG.d(LOG_TAG, "No such algorithm in cipher");
+            e.printStackTrace();
+        } catch (InvalidKeyException e) {
+            LOG.d(LOG_TAG, "Invalid key cipher");
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            LOG.d(LOG_TAG, "Unsupported exception");
+            e.printStackTrace();
+        }
+        return cipher;
+    }
+
+    /**
+     * Play short part of main song
+     * @param playFile source playable music
+     * @param cipher {@link Cipher} cipher for decryption
+     * @param mediaPlayer {@link MediaPlayer} object for play short part of songs
+     */
+    private void  playShortFile(File playFile, Cipher cipher, MediaPlayer mediaPlayer) {
+        try {
+            FileInputStream shortFileStream = new FileInputStream(
+                    new File(playFile.getAbsolutePath().substring(0, playFile.getAbsolutePath().lastIndexOf('/')) + "/" + removeExtension(playFile.getName()) + "_x10.mp3")
+            );
+            CipherInputStream cipherInputStream = new CipherInputStream(shortFileStream, cipher);
+            File tempShortSong = File.createTempFile("music_10", "mp3", context.getCacheDir());
+            FileOutputStream shortFileOs = new FileOutputStream(tempShortSong);
+            try {
+                mediaPlayer.reset();
+                mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                byte[] bufferx = new byte[MAX_BUFFER_SIZE];
+                int bytesReadx;
+                while ((bytesReadx = cipherInputStream.read(bufferx)) != -1) {
+                    if (cipherInputStream.available() == 0) {
+                        shortFileOs.write(bufferx, 0, bytesReadx);
+                    }
+                }
+                mediaPlayer.setDataSource(new FileInputStream(tempShortSong).getFD());
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            } finally {
+                cipherInputStream.close();
+                shortFileOs.close();
             }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static String removeExtension(String filename) {
+        return filename.substring(0, filename.lastIndexOf('.'));
+    }
+
+    // AudioPlayer modes
+    public enum MODE {
+        NONE, PLAY, RECORD
+    }
+
+    // AudioPlayer states
+    public enum STATE {
+        MEDIA_NONE,
+        MEDIA_STARTING,
+        MEDIA_RUNNING,
+        MEDIA_PAUSED,
+        MEDIA_STOPPED,
+        MEDIA_LOADING
     }
 }
