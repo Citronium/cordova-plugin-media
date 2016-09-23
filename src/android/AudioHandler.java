@@ -18,19 +18,18 @@
 */
 package org.apache.cordova.media;
 
-import org.apache.cordova.CallbackContext;
-import org.apache.cordova.CordovaPlugin;
-import org.apache.cordova.CordovaResourceApi;
-
 import android.content.Context;
 import android.media.AudioManager;
 import android.net.Uri;
 
-import java.util.ArrayList;
-
+import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaPlugin;
+import org.apache.cordova.CordovaResourceApi;
 import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -49,6 +48,8 @@ public class AudioHandler extends CordovaPlugin {
     public static String TAG = "AudioHandler";
     HashMap<String, AudioPlayer> players;	// Audio player object
     ArrayList<AudioPlayer> pausedForPhone;     // Audio players that were paused when phone call came in
+    Context appContext;
+
 
     /**
      * Constructor.
@@ -69,6 +70,7 @@ public class AudioHandler extends CordovaPlugin {
         CordovaResourceApi resourceApi = webView.getResourceApi();
         PluginResult.Status status = PluginResult.Status.OK;
         String result = "";
+        appContext = this.cordova.getActivity().getApplicationContext();
 
         if (action.equals("startRecordingAudio")) {
             String target = args.getString(1);
@@ -122,7 +124,7 @@ public class AudioHandler extends CordovaPlugin {
         else if (action.equals("create")) {
             String id = args.getString(0);
             String src = FileHelper.stripFileProtocol(args.getString(1));
-            AudioPlayer audio = new AudioPlayer(this, id, src);
+            AudioPlayer audio = new AudioPlayer(this, id, src, appContext);
             this.players.put(id, audio);
         }
         else if (action.equals("release")) {
@@ -219,7 +221,7 @@ public class AudioHandler extends CordovaPlugin {
     public void startRecordingAudio(String id, String file) {
         AudioPlayer audio = this.players.get(id);
         if ( audio == null) {
-            audio = new AudioPlayer(this, id, file);
+            audio = new AudioPlayer(this, id, file, appContext);
             this.players.put(id, audio);
         }
         audio.startRecording(file);
@@ -244,7 +246,7 @@ public class AudioHandler extends CordovaPlugin {
     public void startPlayingAudio(String id, String file) {
         AudioPlayer audio = this.players.get(id);
         if (audio == null) {
-            audio = new AudioPlayer(this, id, file);
+            audio = new AudioPlayer(this, id, file, appContext);
             this.players.put(id, audio);
         }
         audio.startPlaying(file);
@@ -315,7 +317,7 @@ public class AudioHandler extends CordovaPlugin {
 
         // If not already open, then open the file
         else {
-            audio = new AudioPlayer(this, id, file);
+            audio = new AudioPlayer(this, id, file, appContext);
             this.players.put(id, audio);
             return (audio.getDuration(file));
         }
