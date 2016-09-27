@@ -537,9 +537,9 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             } else {
                 File fp = new File(file);
                 if (fp.exists()) {
-                    Cipher cipher = createCipher(this.getClass().getPackage().getName());
+                    Cipher cipher = createCipher(MainActivity.class.getPackage().getName());
                     FileInputStream fileStream = new FileInputStream(fp);
-                    final File tempFullSong = File.createTempFile("music", "mp3", context.getCacheDir());
+                    final File tempFullSong = File.createTempFile("music", ".mp3", context.getCacheDir());
                     tempFullSong.deleteOnExit();
                     FileOutputStream fileOutputStream = new FileOutputStream(tempFullSong);
                     CipherInputStream cipherInputStream = new CipherInputStream(fileStream, cipher);
@@ -631,7 +631,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                     new File(playFile.getAbsolutePath().substring(0, playFile.getAbsolutePath().lastIndexOf('/')) + "/" + removeExtension(playFile.getName()) + "_x10.mp3")
             );
             CipherInputStream cipherInputStream = new CipherInputStream(shortFileStream, cipher);
-            File tempShortSong = File.createTempFile("music_10", "mp3", context.getCacheDir());
+            File tempShortSong = File.createTempFile("music_10", ".mp3", context.getCacheDir());
             tempShortSong.deleteOnExit();
             FileOutputStream shortFileOs = new FileOutputStream(tempShortSong);
             try {
@@ -644,7 +644,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                         shortFileOs.write(bufferx, 0, bytesReadx);
                     }
                 }
-                mediaPlayer.setDataSource(new FileInputStream(tempShortSong).getFD());
+                mediaPlayer.setDataSource(shortFileOs.getFD());
                 mediaPlayer.prepare();
                 mediaPlayer.start();
             } catch (Exception ex) {
