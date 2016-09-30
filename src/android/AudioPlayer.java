@@ -537,7 +537,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             } else {
                 File fp = new File(file);
                 if (fp.exists()) {
-                    Cipher cipher = createCipher(MainActivity.class.getPackage().getName());
+                    Cipher cipher = createCipher("secret");
                     FileInputStream fileStream = new FileInputStream(fp);
                     final File tempFullSong = File.createTempFile("music", ".mp3", context.getCacheDir());
                     tempFullSong.deleteOnExit();
