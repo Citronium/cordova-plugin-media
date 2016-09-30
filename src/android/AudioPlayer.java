@@ -539,7 +539,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                 if (fp.exists()) {
                     Cipher cipher = createCipher("secret");
                     FileInputStream fileStream = new FileInputStream(fp);
-                    final File tempFullSong = File.createTempFile("music", ".mp3", context.getCacheDir());
+                    final File tempFullSong = File.createTempFile("music", ".adb", context.getCacheDir());
                     tempFullSong.deleteOnExit();
                     FileOutputStream fileOutputStream = new FileOutputStream(tempFullSong);
                     CipherInputStream cipherInputStream = new CipherInputStream(fileStream, cipher);
@@ -628,10 +628,10 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     private void  playShortFile(File playFile, Cipher cipher, MediaPlayer mediaPlayer) {
         try {
             FileInputStream shortFileStream = new FileInputStream(
-                    new File(playFile.getAbsolutePath().substring(0, playFile.getAbsolutePath().lastIndexOf('/')) + "/" + removeExtension(playFile.getName()) + "_x10.mp3")
+                    new File(playFile.getAbsolutePath().substring(0, playFile.getAbsolutePath().lastIndexOf('/')) + "/" + removeExtension(playFile.getName()) + "_x10.adb")
             );
             CipherInputStream cipherInputStream = new CipherInputStream(shortFileStream, cipher);
-            File tempShortSong = File.createTempFile("music_10", ".mp3", context.getCacheDir());
+            File tempShortSong = File.createTempFile("music_10", ".adb", context.getCacheDir());
             tempShortSong.deleteOnExit();
             FileOutputStream shortFileOs = new FileOutputStream(tempShortSong);
             try {
