@@ -19,9 +19,10 @@
  *
 */
 
+/* global MediaError */
+
 var argscheck = require('cordova/argscheck'),
-    utils = require('cordova/utils'),
-    exec = require('cordova/exec');
+    utils = require('cordova/utils');
 
 var mediaObjects = {};
 
@@ -38,7 +39,7 @@ var mediaObjects = {};
  *                                  statusCallback(int statusCode) - OPTIONAL
  */
 var Media = function(src, successCallback, errorCallback, statusCallback) {
-    argscheck.checkArgs('sFFF', 'Media', arguments);
+    argscheck.checkArgs('SFFF', 'Media', arguments);
     this.id = utils.createUUID();
     mediaObjects[this.id] = this;
     this.src = src;
@@ -47,8 +48,55 @@ var Media = function(src, successCallback, errorCallback, statusCallback) {
     this.statusCallback = statusCallback;
     this._duration = -1;
     this._position = -1;
-    exec(null, this.errorCallback, "Media", "create", [this.id, this.src]);
+
+    Media.onStatus(this.id, Media.MEDIA_STATE, Media.MEDIA_STARTING);
+    
+    try {
+        this.node = createNode(this);
+    } catch (err) {
+        Media.onStatus(this.id, Media.MEDIA_ERROR, { code: MediaError.MEDIA_ERR_ABORTED });
+    }
 };
+
+/**
+ * Creates new Audio node and with necessary event listeners attached
+ * @param  {Media} media Media object
+ * @return {Audio}       Audio element 
+ */
+function createNode (media) {
+    var node = new Audio();
+
+    node.onloadstart = function () {
+        Media.onStatus(media.id, Media.MEDIA_STATE, Media.MEDIA_STARTING);
+    };
+
+    node.onplaying = function () {
+        Media.onStatus(media.id, Media.MEDIA_STATE, Media.MEDIA_RUNNING);
+    };
+
+    node.ondurationchange = function (e) {
+        Media.onStatus(media.id, Media.MEDIA_DURATION, e.target.duration || -1);
+    };
+
+    node.onerror = function (e) {
+        // Due to media.spec.15 It should return MediaError for bad filename
+        var err = e.target.error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ?
+            { code: MediaError.MEDIA_ERR_ABORTED } :
+            e.target.error;
+
+        Media.onStatus(media.id, Media.MEDIA_ERROR, err);
+    };
+
+    node.onended = function () {
+        Media.onStatus(media.id, Media.MEDIA_STATE, Media.MEDIA_STOPPED);
+    };
+
+    if (media.src) {
+        node.src = media.src;
+    }
+
+    return node;
+}
 
 // Media messages
 Media.MEDIA_STATE = 1;
@@ -64,44 +112,57 @@ Media.MEDIA_PAUSED = 3;
 Media.MEDIA_STOPPED = 4;
 Media.MEDIA_MSG = ["None", "Starting", "Running", "Paused", "Stopped"];
 
-// "static" function to return existing objs.
-Media.get = function(id) {
-    return mediaObjects[id];
-};
-
 /**
  * Start or resume playing audio file.
  */
-Media.prototype.play = function(options) {
-    exec(null, null, "Media", "startPlayingAudio", [this.id, this.src, options]);
+Media.prototype.play = function() {
+
+    // if Media was released, then node will be null and we need to create it again
+    if (!this.node) {
+        try {
+            this.node = createNode(this);
+        } catch (err) {
+            Media.onStatus(this.id, Media.MEDIA_ERROR, { code: MediaError.MEDIA_ERR_ABORTED });
+        }
+    }
+
+    this.node.play();
 };
 
 /**
  * Stop playing audio file.
  */
 Media.prototype.stop = function() {
-    var me = this;
-    exec(function() {
-        me._position = 0;
-    }, this.errorCallback, "Media", "stopPlayingAudio", [this.id]);
+    try {
+        this.pause();
+        this.seekTo(0);
+        Media.onStatus(this.id, Media.MEDIA_STATE, Media.MEDIA_STOPPED);
+    } catch (err) {
+        Media.onStatus(this.id, Media.MEDIA_ERROR, err);
+    }
 };
 
 /**
  * Seek or jump to a new time in the track..
  */
 Media.prototype.seekTo = function(milliseconds) {
-    var me = this;
-    exec(function(p) {
-        me._position = p;
-    }, this.errorCallback, "Media", "seekToAudio", [this.id, milliseconds]);
+    try {
+        this.node.currentTime = milliseconds / 1000;
+    } catch (err) {
+        Media.onStatus(this.id, Media.MEDIA_ERROR, err);
+    }
 };
 
 /**
  * Pause playing audio file.
  */
 Media.prototype.pause = function() {
-    exec(null, this.errorCallback, "Media", "pausePlayingAudio", [this.id]);
-};
+    try {
+        this.node.pause();
+        Media.onStatus(this.id, Media.MEDIA_STATE, Media.MEDIA_PAUSED);
+    } catch (err) {
+        Media.onStatus(this.id, Media.MEDIA_ERROR, err);
+    }};
 
 /**
  * Get duration of an audio file.
@@ -117,73 +178,44 @@ Media.prototype.getDuration = function() {
  * Get position of audio.
  */
 Media.prototype.getCurrentPosition = function(success, fail) {
-    var me = this;
-    exec(function(p) {
-        me._position = p;
+    try {
+        var p = this.node.currentTime;
+        Media.onStatus(this.id, Media.MEDIA_POSITION, p);
         success(p);
-    }, fail, "Media", "getCurrentPositionAudio", [this.id]);
+    } catch (err) {
+        fail(err);
+    }
 };
 
 /**
  * Start recording audio file.
  */
 Media.prototype.startRecord = function() {
-    exec(null, this.errorCallback, "Media", "startRecordingAudio", [this.id, this.src]);
+    Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Stop recording audio file.
  */
 Media.prototype.stopRecord = function() {
-    exec(null, this.errorCallback, "Media", "stopRecordingAudio", [this.id]);
-};
-
-/**
- * Pause recording audio file.
- */
-Media.prototype.pauseRecord = function() {
-    exec(null, this.errorCallback, "Media", "pauseRecordingAudio", [this.id]);
-};
-
-/**
-* Resume recording audio file.
-*/
-Media.prototype.resumeRecord = function() {
-    exec(null, this.errorCallback, "Media", "resumeRecordingAudio", [this.id]);
+    Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Release the resources.
  */
 Media.prototype.release = function() {
-    exec(null, this.errorCallback, "Media", "release", [this.id]);
-};
+    try {
+        delete this.node;
+    } catch (err) {
+        Media.onStatus(this.id, Media.MEDIA_ERROR, err);
+    }};
 
 /**
  * Adjust the volume.
  */
 Media.prototype.setVolume = function(volume) {
-    exec(null, null, "Media", "setVolume", [this.id, volume]);
-};
-
-/**
- * Adjust the playback rate.
- */
-Media.prototype.setRate = function(rate) {
-    if (cordova.platformId === 'ios'){
-        exec(null, null, "Media", "setRate", [this.id, rate]);
-    } else {
-        console.warn('media.setRate method is currently not supported for', cordova.platformId, 'platform.');
-    }
-};
-
-/**
- * Get amplitude of audio.
- */
-Media.prototype.getCurrentAmplitude = function(success, fail) {
-    exec(function(p) {
-        success(p);
-    }, fail, "Media", "getCurrentAmplitudeAudio", [this.id]);
+    this.node.volume = volume;
 };
 
 /**
@@ -204,7 +236,7 @@ Media.onStatus = function(id, msgType, value) {
                 if (media.statusCallback) {
                     media.statusCallback(value);
                 }
-                if (value == Media.MEDIA_STOPPED) {
+                if (value === Media.MEDIA_STOPPED) {
                     if (media.successCallback) {
                         media.successCallback();
                     }
@@ -230,28 +262,6 @@ Media.onStatus = function(id, msgType, value) {
     } else if (console.error) {
         console.error("Received Media.onStatus callback for unknown media :: " + id);
     }
-
 };
 
 module.exports = Media;
-
-function onMessageFromNative(msg) {
-    if (msg.action == 'status') {
-        Media.onStatus(msg.status.id, msg.status.msgType, msg.status.value);
-    } else {
-        throw new Error('Unknown media action' + msg.action);
-    }
-}
-
-if (cordova.platformId === 'android' || cordova.platformId === 'amazon-fireos' || cordova.platformId === 'windowsphone') {
-
-    var channel = require('cordova/channel');
-
-    channel.createSticky('onMediaPluginReady');
-    channel.waitForInitialization('onMediaPluginReady');
-
-    channel.onCordovaReady.subscribe(function() {
-        exec(onMessageFromNative, undefined, 'Media', 'messageChannel', []);
-        channel.initializationComplete('onMediaPluginReady');
-    });
-}

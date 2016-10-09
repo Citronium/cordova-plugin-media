@@ -1,23 +1,25 @@
-<!---
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+<!--
+# license: Licensed to the Apache Software Foundation (ASF) under one
+#         or more contributor license agreements.  See the NOTICE file
+#         distributed with this work for additional information
+#         regarding copyright ownership.  The ASF licenses this file
+#         to you under the Apache License, Version 2.0 (the
+#         "License"); you may not use this file except in compliance
+#         with the License.  You may obtain a copy of the License at
+#
+#           http://www.apache.org/licenses/LICENSE-2.0
+#
+#         Unless required by applicable law or agreed to in writing,
+#         software distributed under the License is distributed on an
+#         "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+#         KIND, either express or implied.  See the License for the
+#         specific language governing permissions and limitations
+#         under the License.
 -->
 
 # cordova-plugin-media
+
+[![Build Status](https://travis-ci.org/apache/cordova-plugin-media.svg)](https://travis-ci.org/apache/cordova-plugin-media)
 
 這個外掛程式提供錄製和播放設備上的音訊檔的能力。
 
@@ -40,20 +42,20 @@
 
 ## 支援的平臺
 
-*   Android 系統
-*   黑莓 10
-*   iOS
-*   Windows Phone 7 和 8
-*   Tizen
-*   Windows
+  * Android 系統
+  * 黑莓 10
+  * iOS
+  * Windows Phone 7 和 8
+  * Tizen
+  * Windows 8
+  * Windows
+  * 瀏覽器
 
 ## Windows Phone 怪癖
 
-*   只有一個媒體檔案，可以播放一次。
+  * 只有一個媒體檔案，可以播放一次。
 
-*   沒有嚴格限制對您的應用程式與其他媒體的對話模式。 請參見[Microsoft 文檔的詳細資訊][1].
-
- [1]: http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh184838(v=vs.92).aspx
+  * 沒有嚴格限制對您的應用程式與其他媒體的對話模式。 請參見[Microsoft 文檔的詳細資訊](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh184838(v=vs.92).aspx).
 
 ## 媒體
 
@@ -62,53 +64,53 @@
 
 ### 參數
 
-*   **src**： 包含音訊內容的 URI。*() DOMString*
+  * **src**： 包含音訊內容的 URI。*() DOMString*
 
-*   **mediaSuccess**： （可選） 後執行的回檔 `Media` 物件已完成當前戲劇、 記錄或停止行動。*（函數）*
+  * **mediaSuccess**： （可選） 後執行的回檔 `Media` 物件已完成當前戲劇、 記錄或停止行動。*（函數）*
 
-*   **mediaError**： （可選） 如果錯誤發生時執行的回檔。*（函數）*
+  * **mediaError**： （可選） 如果錯誤發生時執行的回檔。*（函數）*
 
-*   **mediaStatus**： （可選） 執行以指示狀態的更改的回檔。*（函數）*
+  * **mediaStatus**： （可選） 執行以指示狀態的更改的回檔。*（函數）*
 
 ### 常量
 
 下列常量 `mediaStatus` 回檔報告作為唯一的參數：
 
-*   `Media.MEDIA_NONE` = 0;
-*   `Media.MEDIA_STARTING` = 1;
-*   `Media.MEDIA_RUNNING` = 2;
-*   `Media.MEDIA_PAUSED`= 3 ；
-*   `Media.MEDIA_STOPPED`= 4 ；
+  * `Media.MEDIA_NONE` = 0;
+  * `Media.MEDIA_STARTING` = 1;
+  * `Media.MEDIA_RUNNING` = 2;
+  * `Media.MEDIA_PAUSED`= 3 ；
+  * `Media.MEDIA_STOPPED`= 4 ；
 
 ### 方法
 
-*   `media.getCurrentPosition`： 返回一個音訊檔內的當前位置。
+  * `media.getCurrentPosition`： 返回一個音訊檔內的當前位置。
 
-*   `media.getDuration`： 返回一個音訊檔的持續時間。
+  * `media.getDuration`： 返回一個音訊檔的持續時間。
 
-*   `media.play`： 啟動或繼續播放音訊檔。
+  * `media.play`： 啟動或繼續播放音訊檔。
 
-*   `media.pause`： 暫停播放的音訊檔。
+  * `media.pause`： 暫停播放的音訊檔。
 
-*   `media.release`： 釋放底層作業系統的音訊資源。
+  * `media.release`： 釋放底層作業系統的音訊資源。
 
-*   `media.seekTo`： 在音訊檔內移動的位置。
+  * `media.seekTo`： 在音訊檔內移動的位置。
 
-*   `media.setVolume`： 設置音訊播放的音量。
+  * `media.setVolume`： 設置音訊播放的音量。
 
-*   `media.startRecord`： 開始錄製的音訊檔。
+  * `media.startRecord`： 開始錄製的音訊檔。
 
-*   `media.stopRecord`： 停止錄製的音訊檔。
+  * `media.stopRecord`： 停止錄製的音訊檔。
 
-*   `media.stop`： 停止播放音訊檔。
+  * `media.stop`： 停止播放音訊檔。
 
 ### 附加唯讀參數
 
-*   **position**： 內音訊播放，以秒為單位的位置。
+  * **position**： 內音訊播放，以秒為單位的位置。
     
-    *   不會自動更新期間播放 ；調用 `getCurrentPosition` 來更新。
+      * 不會自動更新期間播放 ；調用 `getCurrentPosition` 來更新。
 
-*   **duration**: 媒體的持續時間以秒為單位。
+  * **duration**: 媒體的持續時間以秒為單位。
 
 ## media.getCurrentPosition
 
@@ -119,9 +121,9 @@
 
 ### 參數
 
-*   **mediaSuccess**： 傳遞的當前的位置，以秒為單位的回檔。
+  * **mediaSuccess**： 傳遞的當前的位置，以秒為單位的回檔。
 
-*   **mediaError**： （可選） 回檔執行如果發生錯誤。
+  * **mediaError**： （可選） 回檔執行如果發生錯誤。
 
 ### 快速的示例
 
@@ -235,19 +237,19 @@
 
 ### iOS 的怪癖
 
-*   **numberOfLoops**： 傳遞到此選項 `play` 方法，以指定的次數，你想讓媒體檔案以播放，例如：
+  * **numberOfLoops**： 傳遞到此選項 `play` 方法，以指定的次數，你想讓媒體檔案以播放，例如：
     
         var myMedia = new Media("http://audio.ibeat.org/content/p1rj1s/p1rj1s_-_rockGuitar.mp3")
         myMedia.play({ numberOfLoops: 2 })
         
 
-*   **playAudioWhenScreenIsLocked**： 通過此選項可在 `play` 方法，以指定您是否要允許播放時螢幕鎖定。 如果設置為 `true` （預設值），將忽略硬體靜音按鈕的狀態，例如：
+  * **playAudioWhenScreenIsLocked**： 通過此選項可在 `play` 方法，以指定您是否要允許播放時螢幕鎖定。 如果設置為 `true` （預設值），將忽略硬體靜音按鈕的狀態，例如：
     
         var myMedia = new Media("http://audio.ibeat.org/content/p1rj1s/p1rj1s_-_rockGuitar.mp3")
         myMedia.play({ playAudioWhenScreenIsLocked : false })
         
 
-*   **檔搜索順序**： 當只有一個檔的名稱或簡單路徑提供時，搜索中的 iOS `www` 目錄為該檔，然後在應用程式中的 `documents/tmp` 目錄：
+  * **檔搜索順序**： 當只有一個檔的名稱或簡單路徑提供時，搜索中的 iOS `www` 目錄為該檔，然後在應用程式中的 `documents/tmp` 目錄：
     
         var myMedia = new Media("audio/beer.mp3")
         myMedia.play()  // first looks for file in www/audio/beer.mp3 then in <application>/documents/tmp/audio/beer.mp3
@@ -280,7 +282,7 @@
 
 ### 參數
 
-*   **miliseconds）**： 要以毫秒為單位設置中，音訊的播放位置的位置。
+  * **miliseconds）**： 要以毫秒為單位設置中，音訊的播放位置的位置。
 
 ### 快速的示例
 
@@ -296,7 +298,7 @@
 
 ### 黑莓 10 怪癖
 
-*   黑莓 OS 5 設備上不支援。
+  * 黑莓 OS 5 設備上不支援。
 
 ## media.setVolume
 
@@ -307,12 +309,12 @@
 
 ### 參數
 
-*   **volume**： 要為播放設置的卷。值必須在 0.0 到 1.0 的範圍內。
+  * **volume**： 要為播放設置的卷。值必須在 0.0 到 1.0 的範圍內。
 
 ### 支援的平臺
 
-*   Android 系統
-*   iOS
+  * Android 系統
+  * iOS
 
 ### 快速的示例
 
@@ -354,10 +356,10 @@
 
 ### 支援的平臺
 
-*   Android 系統
-*   iOS
-*   Windows Phone 7 和 8
-*   Windows
+  * Android 系統
+  * iOS
+  * Windows Phone 7 和 8
+  * Windows
 
 ### 快速的示例
 
@@ -383,29 +385,31 @@
 
 ### Android 的怪癖
 
-*   Android 設備音訊格式記錄的自我調整多速率。指定的檔應以*.amr*副檔名結尾。
-*   硬體音量控制有線到媒體卷中，而任何媒體物件是還活著。 一旦最後創建的媒體物件具有 `release()` 在它上面調用，音量控制還原為其預設行為。 因為這會釋放所有媒體物件，控制項也上頁面導航，重置。
+  * Android 設備音訊格式記錄的自我調整多速率。指定的檔應以*.amr*副檔名結尾。
+  * 硬體音量控制有線到媒體卷中，而任何媒體物件是還活著。 一旦最後創建的媒體物件具有 `release()` 在它上面調用，音量控制還原為其預設行為。 因為這會釋放所有媒體物件，控制項也上頁面導航，重置。
 
 ### iOS 的怪癖
 
-*   iOS 只記錄到檔的類型*.wav*和返回一個錯誤如果檔副檔名不正確。
+  * iOS 只記錄到檔的類型*.wav*和返回一個錯誤如果檔副檔名不正確。
 
-*   如果未提供的完整路徑，錄音放在應用程式的 `documents/tmp` 目錄。 這可以通過訪問 `File` API 使用 `LocalFileSystem.TEMPORARY` 。 在記錄時指定的任何子目錄中必須已經存在。
+  * 如果未提供的完整路徑，錄音放在應用程式的 `documents/tmp` 目錄。 這可以通過訪問 `File` API 使用 `LocalFileSystem.TEMPORARY` 。 在記錄時指定的任何子目錄中必須已經存在。
 
-*   檔可以記錄和演奏的後面使用的檔的 URI：
+  * 檔可以記錄和演奏的後面使用的檔的 URI：
     
         var myMedia = new Media("documents://beer.mp3")
         
 
 ### Windows 的怪癖
 
-*   如果沒有提供完整的路徑，錄音被放在應用程式/temp 目錄。這可以通過訪問 `檔` API 使用 `LocalFileSystem.TEMPORARY` 或 ' ms appdata： temp / / /<filename>' URI。
+  * Windows 設備可以使用 MP3、 M4A、 WMA 格式錄製音訊。 然而在大多數情況下它是不可能用於 MP3 音訊記錄在*Windows Phone 8.1*設備上，因為 MP3 編碼器是[不附帶 Windows Phone](https://msdn.microsoft.com/en-us/library/windows/apps/windows.media.mediaproperties.mediaencodingprofile.createmp3.aspx).
 
-*   在記錄時指定的任何子目錄中必須已經存在。
+  * 如果沒有提供完整的路徑，錄音被放在應用程式/temp 目錄。這可以通過訪問 `檔` API 使用 `LocalFileSystem.TEMPORARY` 或 ' ms appdata： temp / / /<filename>' URI。
 
-### 泰怪癖
+  * 在記錄時指定的任何子目錄中必須已經存在。
 
-*   不支援在 Tizen 設備上。
+### Tizen 怪癖
+
+  * 不支援在 Tizen 設備上。
 
 ## media.stop
 
@@ -414,7 +418,7 @@
     media.stop();
     
 
-### 簡單的例子
+### 快速的示例
 
     // Play audio
     //
@@ -450,12 +454,12 @@
 
 ### 支援的平臺
 
-*   安卓系統
-*   iOS
-*   Windows Phone 7 和 8
-*   Windows
+  * Android 系統
+  * iOS
+  * Windows Phone 7 和 8
+  * Windows
 
-### 簡單的例子
+### 快速的示例
 
     // Record audio
     //
@@ -483,9 +487,9 @@
     }
     
 
-### 泰怪癖
+### Tizen 怪癖
 
-*   不支援在 Tizen 設備上。
+  * 不支援在 Tizen 設備上。
 
 ## MediaError
 
@@ -493,13 +497,13 @@
 
 ### 屬性
 
-*   **code**： 下面列出的預定義的錯誤代碼之一。
+  * **code**： 下面列出的預定義的錯誤代碼之一。
 
-*   **message**： 錯誤訊息，描述該錯誤的詳細資訊。
+  * **message**： 錯誤訊息，描述該錯誤的詳細資訊。
 
 ### 常量
 
-*   `MediaError.MEDIA_ERR_ABORTED`= 1
-*   `MediaError.MEDIA_ERR_NETWORK`= 2
-*   `MediaError.MEDIA_ERR_DECODE`= 3
-*   `MediaError.MEDIA_ERR_NONE_SUPPORTED`= 4
+  * `MediaError.MEDIA_ERR_ABORTED`= 1
+  * `MediaError.MEDIA_ERR_NETWORK`= 2
+  * `MediaError.MEDIA_ERR_DECODE`= 3
+  * `MediaError.MEDIA_ERR_NONE_SUPPORTED`= 4
