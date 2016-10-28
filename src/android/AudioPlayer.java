@@ -26,6 +26,7 @@ import android.media.MediaPlayer.OnErrorListener;
 import android.media.MediaPlayer.OnPreparedListener;
 import android.media.MediaRecorder;
 import android.os.Environment;
+import android.os.PowerManager;
 
 import org.apache.cordova.LOG;
 
@@ -575,6 +576,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                 case MEDIA_NONE:
                     if (this.player == null) {
                         this.player = new MediaPlayer();
+                        this.player.setWakeMode(this.context, PowerManager.PARTIAL_WAKE_LOCK);
                         this.player.setOnErrorListener(this);
                     }
                     try {
@@ -598,6 +600,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                         //maybe it was recording?
                         if(this.recorder!=null && player==null) {
                             this.player = new MediaPlayer();
+                            this.player.setWakeMode(this.context, PowerManager.PARTIAL_WAKE_LOCK);
                             this.player.setOnErrorListener(this);
                             this.prepareOnly = false;
 

@@ -31,6 +31,7 @@ import android.media.AudioManager.OnAudioFocusChangeListener;
 import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
+import android.util.Log;
 
 import java.security.Permission;
 import java.util.ArrayList;
@@ -64,6 +65,7 @@ public class AudioHandler extends CordovaPlugin {
     private CallbackContext messageChannel;
 
     private Context appContext;
+    private PowerManager.WakeLock wakeLock;
 
 
     public static String [] permissions = { Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE};
@@ -110,9 +112,12 @@ public class AudioHandler extends CordovaPlugin {
         String result = "";
         appContext = this.cordova.getActivity().getApplicationContext();
 
-        PowerManager mgr = (PowerManager) appContext.getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
-        wakeLock.acquire();
+        if (wakeLock == null || (wakeLock != null && !wakeLock.isHeld())){
+            Log.i(TAG, "Set Wake Lock");
+            PowerManager mgr = (PowerManager) appContext.getSystemService(Context.POWER_SERVICE);
+            wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyWakeLock");
+            wakeLock.acquire();
+        }
 
         if (action.equals("startRecordingAudio")) {
             recordId = args.getString(0);
