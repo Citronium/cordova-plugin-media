@@ -38,7 +38,7 @@ var mediaObjects = {};
  *                                  statusCallback(int statusCode) - OPTIONAL
  */
 var Media = function(src, successCallback, errorCallback, statusCallback, remoteControlsCallback) {
-    argscheck.checkArgs('SFFF', 'Media', arguments);
+    argscheck.checkArgs('sFFF', 'Media', arguments);
     this.id = utils.createUUID();
     mediaObjects[this.id] = this;
     this.src = src;
@@ -146,6 +146,20 @@ Media.prototype.stopRecord = function() {
 };
 
 /**
+ * Pause recording audio file.
+ */
+Media.prototype.pauseRecord = function() {
+    exec(null, this.errorCallback, "Media", "pauseRecordingAudio", [this.id]);
+};
+
+/**
+* Resume recording audio file.
+*/
+Media.prototype.resumeRecord = function() {
+    exec(null, this.errorCallback, "Media", "resumeRecordingAudio", [this.id]);
+};
+
+/**
  * Release the resources.
  */
 Media.prototype.release = function() {
@@ -158,10 +172,29 @@ Media.prototype.release = function() {
 Media.prototype.setVolume = function(volume) {
     exec(null, null, "Media", "setVolume", [this.id, volume]);
 };
-               
-               
+
 Media.prototype.setLockScreenInfo = function(title, album, artist, pathToCover, duration, position) {
     exec(null, this.errorCallback, "Media", "setLockScreenInfo", [this.id, title, album, artist, pathToCover, duration, position]);
+};
+
+/**
+ * Adjust the playback rate.
+ */
+Media.prototype.setRate = function(rate) {
+    if (cordova.platformId === 'ios'){
+        exec(null, null, "Media", "setRate", [this.id, rate]);
+    } else {
+        console.warn('media.setRate method is currently not supported for', cordova.platformId, 'platform.');
+    }
+};
+
+/**
+ * Get amplitude of audio.
+ */
+Media.prototype.getCurrentAmplitude = function(success, fail) {
+    exec(function(p) {
+        success(p);
+    }, fail, "Media", "getCurrentAmplitudeAudio", [this.id]);
 };
 
 /**
@@ -176,30 +209,37 @@ Media.onStatus = function(id, msgType, value) {
 
     var media = mediaObjects[id];
 
-    if(media) {
+    if (media) {
         switch(msgType) {
             case Media.MEDIA_STATE :
-                media.statusCallback && media.statusCallback(value);
-                if(value == Media.MEDIA_STOPPED) {
-                    media.successCallback && media.successCallback();
+                if (media.statusCallback) {
+                    media.statusCallback(value);
+                }
+                if (value == Media.MEDIA_STOPPED) {
+                    if (media.successCallback) {
+                        media.successCallback();
+                    }
                 }
                 break;
             case Media.MEDIA_DURATION :
                 media._duration = value;
                 break;
             case Media.MEDIA_ERROR :
-                media.errorCallback && media.errorCallback(value);
+                if (media.errorCallback) {
+                    media.errorCallback(value);
+                }
                 break;
             case Media.MEDIA_POSITION :
                 media._position = Number(value);
                 break;
             default :
-                console.error && console.error("Unhandled Media.onStatus :: " + msgType);
+                if (console.error) {
+                    console.error("Unhandled Media.onStatus :: " + msgType);
+                }
                 break;
         }
-    }
-    else {
-         console.error && console.error("Received Media.onStatus callback for unknown media :: " + id);
+    } else if (console.error) {
+        console.error("Received Media.onStatus callback for unknown media :: " + id);
     }
 
 };
@@ -216,6 +256,26 @@ Media.onRemoteControlPressed = function(id, remoteControl) {
 Media.prototype.remoteControlPressed = function(remoteControl) {
     this.remoteControlsCallback(remoteControl);
 };
-               
 
 module.exports = Media;
+
+function onMessageFromNative(msg) {
+    if (msg.action == 'status') {
+        Media.onStatus(msg.status.id, msg.status.msgType, msg.status.value);
+    } else {
+        throw new Error('Unknown media action' + msg.action);
+    }
+}
+
+if (cordova.platformId === 'android' || cordova.platformId === 'amazon-fireos' || cordova.platformId === 'windowsphone') {
+
+    var channel = require('cordova/channel');
+
+    channel.createSticky('onMediaPluginReady');
+    channel.waitForInitialization('onMediaPluginReady');
+
+    channel.onCordovaReady.subscribe(function() {
+        exec(onMessageFromNative, undefined, 'Media', 'messageChannel', []);
+        channel.initializationComplete('onMediaPluginReady');
+    });
+}
